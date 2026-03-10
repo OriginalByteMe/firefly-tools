@@ -1,0 +1,19 @@
+{
+    "version": 3,
+    "date_format": "Ymd",
+    "default_account": 1,
+    "delimiter": "comma",
+    "headers": true,
+    "rules": true,
+    "skip_form": false,
+    "add_import_tag": true,
+    "roles": [],
+    "do_mapping": {},
+    "mapping": {},
+    "duplicate_detection_method": "classic",
+    "unique_column_index": 0,
+    "unique_column_type": "internal_reference",
+    "flow": "file",
+    "content_type": "csv",
+    "specifics": []
+}
