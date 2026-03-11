@@ -67,22 +67,31 @@ Workflow automation built on top of the MCP server. This is where the magic happ
 
 ---
 
-## Quick Start
+## Installation
 
 ### Prerequisites
 
+Before you start, you'll need:
+
 - [Firefly III](https://www.firefly-iii.org/) running somewhere (Docker, Unraid, bare metal, etc.)
 - [Firefly III Data Importer](https://docs.firefly-iii.org/how-to/data-importer/installation/docker/) running alongside it
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
 - [uv](https://docs.astral.sh/uv/) installed (for running the Python MCP server)
 
-### 1. Install the Plugin
+Pick your setup below based on how you use Claude.
+
+---
+
+### Option A: Claude Code (CLI)
+
+The full experience — plugin with skills, agents, and automated workflows.
+
+**1. Install the plugin:**
 
 ```bash
 claude plugin install OriginalByteMe/firefly-tools
 ```
 
-### 2. Run Setup
+**2. Run setup:**
 
 Start Claude Code and run:
 
@@ -90,7 +99,44 @@ Start Claude Code and run:
 /firefly-tools:setup
 ```
 
-This creates a `.env` file in the plugin directory with placeholder values and tells you exactly where it is. Open that file in your text editor and fill in your credentials:
+This creates a `.env` file in the plugin directory and tells you exactly where it is. Open that file in your text editor and fill in your credentials — **you never type secrets into the chat**.
+
+**3. Start importing:**
+
+```
+/firefly-tools:import-and-review ~/Downloads/march-2026-statement.pdf
+```
+
+Done. Claude parses the PDF, imports the transactions, classifies them, and asks you about the ambiguous ones.
+
+---
+
+### Option B: Claude Desktop (GUI)
+
+Claude Desktop doesn't support third-party plugins from GitHub yet (only the official marketplace). But you can use the MCP server directly, which gives you all 7 tools — just without the automated skill workflows.
+
+**1. Download this repo:**
+
+Go to the [GitHub repo](https://github.com/OriginalByteMe/firefly-tools) and click **Code → Download ZIP**, or clone it:
+
+```bash
+git clone https://github.com/OriginalByteMe/firefly-tools.git
+```
+
+Unzip or clone it somewhere permanent — Claude Desktop will reference this folder. For example:
+- macOS: `~/claude-plugins/firefly-tools/`
+- Windows: `C:\Users\YourName\claude-plugins\firefly-tools\`
+
+**2. Configure your credentials:**
+
+Copy the example config and fill in your values:
+
+```bash
+cd firefly-tools
+cp .env.example .env
+```
+
+Open `.env` in your text editor and replace the placeholder values:
 
 ```env
 FIREFLY_URL=http://your-server:8080
@@ -99,79 +145,40 @@ FIREFLY_IMPORTER_URL=http://your-server:8081
 FIREFLY_IMPORTER_SECRET=your-auto-import-secret
 ```
 
-> **Your credentials never enter the chat.** The setup skill creates the file, you edit it externally, then Claude verifies the connection works. The `.env` file stays local and is gitignored.
+**3. Add the MCP server to Claude Desktop:**
 
-**Where to find each value:**
-
-| Value | Where to get it |
-|-------|----------------|
-| `FIREFLY_URL` | The URL you use to open Firefly III in your browser |
-| `FIREFLY_TOKEN` | Firefly III → Options → Profile → Personal Access Tokens → Create |
-| `FIREFLY_IMPORTER_URL` | The URL of your Data Importer instance |
-| `FIREFLY_IMPORTER_SECRET` | The `AUTO_IMPORT_SECRET` in your Data Importer's config (min 16 chars) |
-
-### 3. Import a Statement
-
-```
-/firefly-tools:import-and-review ~/Downloads/march-2026-statement.pdf
-```
-
-That's it. Claude will parse the PDF, import the transactions, classify them, and ask you about the ambiguous ones.
-
----
-
-## Usage Examples
-
-### Import and categorize a bank statement
-
-```
-/firefly-tools:import-and-review ~/Downloads/hsbc-march.csv
-```
-
-Works with both CSV and PDF files. PDFs are parsed by the `csv-parser` agent, which handles multi-page statements and extracts transaction data into a clean CSV before importing.
-
-### Clean up uncategorized transactions
-
-```
-/firefly-tools:classify-unknowns 14
-```
-
-Finds all transactions from the last 14 days that are missing categories, tags, or budgets. Groups similar transactions together, suggests classifications, and asks you about the ambiguous ones in batches — not one-by-one.
-
-### Monthly spending review
-
-```
-/firefly-tools:monthly-review 2026-02
-```
-
-Pulls your spending data, compares against budgets, shows month-over-month trends, and has a conversation with you about what to adjust. Suggests concrete actions like raising a budget limit or creating a new tracking tag.
-
----
-
-## Using the MCP Server Standalone
-
-If you're not using Claude Code, you can still use the MCP server directly with any MCP-compatible client.
-
-### Claude Desktop
-
-Add to your Claude Desktop MCP config:
+Open Claude Desktop settings → **Developer** → **Edit Config** and add the following to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "firefly": {
-      "command": "uvx",
-      "args": ["--from", "git+https://github.com/OriginalByteMe/firefly-tools", "firefly-mcp"]
+      "command": "uv",
+      "args": ["run", "--directory", "/full/path/to/firefly-tools", "firefly-mcp"]
     }
   }
 }
 ```
 
-You'll need to set the environment variables (`FIREFLY_URL`, `FIREFLY_TOKEN`, `FIREFLY_IMPORTER_URL`, `FIREFLY_IMPORTER_SECRET`) in a `.env` file in your working directory or in your shell environment for this to work.
+> Replace `/full/path/to/firefly-tools` with the actual path where you downloaded the repo.
+>
+> **Windows users:** Use forward slashes or escaped backslashes in the path:
+> `"C:/Users/YourName/claude-plugins/firefly-tools"` or `"C:\\Users\\YourName\\claude-plugins\\firefly-tools"`
 
-### Other MCP Clients
+**4. Restart Claude Desktop.**
 
-The MCP server uses stdio transport and should work with any MCP client. The command to start it is:
+The Firefly tools should now appear in Claude's available tools. You can ask Claude things like:
+- "Import my bank statement from ~/Downloads/hsbc-march.csv"
+- "Show me uncategorized transactions from the last 2 weeks"
+- "Give me a spending summary for February"
+
+> **Note:** Claude Desktop gives you the MCP tools but not the plugin skills (slash commands) or agents. You'll be talking to Claude directly and it will use the tools as needed. When plugin marketplace support expands, you'll get the full automated workflow experience.
+
+---
+
+### Option C: Other MCP Clients (Codex, Open Code, etc.)
+
+The MCP server uses stdio transport and works with any MCP-compatible client. The command to start it is:
 
 ```bash
 uvx --from git+https://github.com/OriginalByteMe/firefly-tools firefly-mcp
@@ -182,6 +189,63 @@ Or if you've cloned the repo locally:
 ```bash
 uv run firefly-mcp
 ```
+
+You'll need the four environment variables set (`FIREFLY_URL`, `FIREFLY_TOKEN`, `FIREFLY_IMPORTER_URL`, `FIREFLY_IMPORTER_SECRET`) either in a `.env` file in your working directory or in your shell environment. Refer to your MCP client's docs for how to configure server connections.
+
+---
+
+### Credential Reference
+
+Whichever installation method you use, you'll need these four values:
+
+| Value | Where to find it |
+|-------|-----------------|
+| `FIREFLY_URL` | The URL you use to open Firefly III in your browser |
+| `FIREFLY_TOKEN` | Firefly III → Options → Profile → Personal Access Tokens → Create New Token |
+| `FIREFLY_IMPORTER_URL` | The URL of your Data Importer instance |
+| `FIREFLY_IMPORTER_SECRET` | The `AUTO_IMPORT_SECRET` in your Data Importer's config (min 16 characters) |
+
+---
+
+## Usage
+
+Once installed, here's what you can do.
+
+### Import and categorize a bank statement
+
+**Claude Code:**
+```
+/firefly-tools:import-and-review ~/Downloads/hsbc-march.csv
+```
+
+**Claude Desktop / other clients:**
+> "Import my bank statement at ~/Downloads/hsbc-march.csv into Firefly and help me categorize the transactions"
+
+Works with both CSV and PDF files. PDFs are parsed by Claude, which handles multi-page statements and extracts transaction data into a clean CSV before importing.
+
+### Clean up uncategorized transactions
+
+**Claude Code:**
+```
+/firefly-tools:classify-unknowns 14
+```
+
+**Claude Desktop / other clients:**
+> "Find my uncategorized transactions from the last 14 days and help me classify them"
+
+Groups similar transactions together, suggests classifications, and asks you about the ambiguous ones in batches — not one-by-one.
+
+### Monthly spending review
+
+**Claude Code:**
+```
+/firefly-tools:monthly-review 2026-02
+```
+
+**Claude Desktop / other clients:**
+> "Give me a spending review for February 2026 with budget comparisons"
+
+Pulls your spending data, compares against budgets, shows month-over-month trends, and has a conversation with you about what to adjust.
 
 ---
 
