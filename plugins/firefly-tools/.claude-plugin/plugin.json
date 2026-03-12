@@ -1,0 +1,12 @@
+{
+  "name": "firefly-tools",
+  "version": "0.1.0",
+  "description": "Financial workflow automation for Firefly III — import bank statements, categorize transactions, set up automation rules, and review spending with AI-powered agents.",
+  "author": {
+    "name": "noahr"
+  },
+  "repository": "https://github.com/OriginalByteMe/firefly-tools",
+  "license": "MIT",
+  "keywords": ["finance", "firefly-iii", "budgeting", "transactions", "import", "automation"],
+  "hooks": "./hooks/hooks.json"
+}
