@@ -5,7 +5,7 @@
 # 1. Starts Docker Compose services (Firefly III + MariaDB + Data Importer)
 # 2. Waits for Firefly III to be healthy
 # 3. Creates a test user via artisan (APP_ENV=testing required)
-# 4. Generates a Personal Access Token via artisan tinker
+# 4. Generates a Personal Access Token via inline PHP
 # 5. Writes a .env file for the MCP server
 # 6. Restarts the importer with the real token
 #
@@ -62,30 +62,24 @@ echo "==> Ensuring Passport personal access client exists..."
 docker exec "$APP_CONTAINER" php artisan passport:client --personal --name="Integration Test" --no-interaction 2>&1 || true
 
 echo "==> Generating Personal Access Token..."
-TOKEN=$(docker exec "$APP_CONTAINER" php artisan tinker --execute="
-    \$user = \FireflyIII\User::where('email', '$TEST_EMAIL')->first();
-    if (!\$user) { echo 'ERROR: User not found'; exit(1); }
-    \$token = \$user->createToken('integration-test')->accessToken;
-    echo \$token;
+# artisan tinker was removed in newer Firefly III versions, so we bootstrap
+# the Laravel app directly via php -r to create a Personal Access Token.
+TOKEN=$(docker exec "$APP_CONTAINER" php -r "
+    require '/var/www/html/vendor/autoload.php';
+    \$app = require_once '/var/www/html/bootstrap/app.php';
+    \$app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
+    \$user = \FireflyIII\User::where('email', '$TEST_EMAIL')->first()
+          ?? \FireflyIII\User::first();
+    if (!\$user) { fwrite(STDERR, 'ERROR: No users found\n'); exit(1); }
+    echo \$user->createToken('integration-test')->accessToken;
 " 2>&1) || true
 
-# Clean up the token — tinker may output extra info
+# Clean up — php -r should output only the token, but strip whitespace to be safe
 TOKEN=$(echo "$TOKEN" | tail -1 | tr -d '[:space:]')
 
 if [ -z "$TOKEN" ] || echo "$TOKEN" | grep -qi "error"; then
-    echo "WARNING: First token attempt failed. Output: $TOKEN"
-    echo "==> Attempting alternative token creation..."
-    TOKEN=$(docker exec "$APP_CONTAINER" php artisan tinker --execute="
-        \$user = \FireflyIII\User::first();
-        if (!\$user) { echo 'NO_USER'; exit(1); }
-        \$token = \$user->createToken('fallback-test')->accessToken;
-        echo \$token;
-    " 2>&1 | tail -1 | tr -d '[:space:]') || true
-fi
-
-if [ -z "$TOKEN" ] || echo "$TOKEN" | grep -qi "error"; then
     echo "ERROR: Could not generate a Personal Access Token."
-    echo "       Token output: $TOKEN"
+    echo "       Output: $TOKEN"
     exit 1
 fi
 
