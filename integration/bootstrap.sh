@@ -41,18 +41,42 @@ for i in $(seq 1 60); do
     sleep 2
 done
 
+# Verify database connectivity from the app container before running migrations.
+# The MariaDB health check confirms TCP + InnoDB, but the app may not be able
+# to connect yet (DNS resolution, connection pool, etc.).
+echo "==> Verifying database connectivity..."
+for i in $(seq 1 10); do
+    if docker exec "$APP_CONTAINER" php artisan db:monitor --databases=mysql 2>&1 | grep -qi "ok\|connections"; then
+        echo "    Database connection verified."
+        break
+    fi
+    # Fallback: try a simple migration status check
+    if docker exec "$APP_CONTAINER" php artisan migrate:status 2>&1 | head -5 | grep -qi "migration\|ran\|pending"; then
+        echo "    Database connection verified (via migrate:status)."
+        break
+    fi
+    if [ "$i" -eq 10 ]; then
+        echo "WARNING: Could not verify DB connectivity, proceeding anyway..."
+    fi
+    sleep 2
+done
+
 echo "==> Running database migrations..."
-docker exec "$APP_CONTAINER" php artisan migrate --force --seed 2>&1 || true
+docker exec "$APP_CONTAINER" php artisan migrate --force --seed 2>&1
+echo "    Migrations complete."
 
 echo "==> Running Firefly III database upgrade & corrections..."
-docker exec "$APP_CONTAINER" php artisan firefly-iii:upgrade-database 2>&1 || true
+docker exec "$APP_CONTAINER" php artisan firefly-iii:upgrade-database 2>&1
 docker exec "$APP_CONTAINER" php artisan firefly-iii:correct-database 2>&1 || true
+echo "    Database upgrade complete."
 
 echo "==> Setting up Passport encryption keys..."
 docker exec "$APP_CONTAINER" php artisan firefly-iii:laravel-passport-keys 2>&1 \
-    || docker exec "$APP_CONTAINER" php artisan passport:keys --force --no-interaction 2>&1 \
-    || true
-docker exec "$APP_CONTAINER" php artisan passport:client --personal --name="Integration Test" --no-interaction 2>&1 || true
+    || docker exec "$APP_CONTAINER" php artisan passport:keys --force --no-interaction 2>&1
+echo "    Passport keys generated."
+
+docker exec "$APP_CONTAINER" php artisan passport:client --personal --name="Integration Test" --no-interaction 2>&1
+echo "    Personal access client created."
 
 echo "==> Creating test user and generating Personal Access Token..."
 # Use inline PHP to create the user and token in one step. This avoids
@@ -88,7 +112,7 @@ TOKEN=$(docker exec "$APP_CONTAINER" php -r '
     // Generate a Personal Access Token via Passport
     $token = $user->createToken("integration-test")->accessToken;
     echo $token;
-' 2>/tmp/user_creation.log) || true
+' 2>/tmp/user_creation.log)
 
 # Show user creation log
 if [ -f /tmp/user_creation.log ]; then
@@ -109,19 +133,32 @@ fi
 echo "    Token: ${TOKEN:0:20}..."
 
 echo "==> Verifying token with Firefly III API..."
-# Use /api/v1/accounts (authenticated) to verify the token actually works
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "Accept: application/json" \
-    "http://localhost:8080/api/v1/accounts")
+# Use /api/v1/accounts (authenticated) to verify the token actually works.
+# Retry a few times — the app may need a moment after Passport setup.
+VERIFY_OK=false
+for attempt in 1 2 3 4 5; do
+    HTTP_CODE=$(curl -s -o /tmp/api_verify_response.json -w "%{http_code}" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Accept: application/json" \
+        "http://localhost:8080/api/v1/accounts")
 
-if [ "$HTTP_CODE" = "200" ]; then
-    echo "    API verification successful (HTTP $HTTP_CODE)"
-else
-    echo "    WARNING: API returned HTTP $HTTP_CODE — token may not work"
-    echo "    Response from /api/v1/accounts:"
-    curl -s -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" \
-        "http://localhost:8080/api/v1/accounts" | head -10
+    if [ "$HTTP_CODE" = "200" ]; then
+        echo "    API verification successful (HTTP $HTTP_CODE, attempt $attempt)"
+        VERIFY_OK=true
+        break
+    fi
+    echo "    Attempt $attempt: HTTP $HTTP_CODE — retrying in 3s..."
+    sleep 3
+done
+
+if [ "$VERIFY_OK" != "true" ]; then
+    echo "ERROR: API verification failed after 5 attempts (last HTTP $HTTP_CODE)."
+    echo "    Response body:"
+    cat /tmp/api_verify_response.json 2>/dev/null | head -20
+    echo ""
+    echo "    Firefly III application log (last 50 lines):"
+    docker exec "$APP_CONTAINER" cat /var/www/html/storage/logs/laravel.log 2>/dev/null | tail -50 || true
+    exit 1
 fi
 
 echo "==> Writing .env.test file..."
