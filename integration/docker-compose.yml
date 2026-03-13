@@ -1,6 +1,6 @@
 services:
   app:
-    image: fireflyiii/core:latest
+    image: fireflyiii/core:version-6.5.4
     hostname: app
     container_name: firefly_iii_test
     restart: "no"
@@ -8,7 +8,7 @@ services:
       - firefly_upload:/var/www/html/storage/upload
     environment:
       # App
-      APP_ENV: testing
+      APP_ENV: local
       APP_KEY: ${APP_KEY:-SomeRandomStringOf32CharsExactly}
       APP_URL: http://localhost:8080
       TRUSTED_PROXIES: "**"
@@ -61,7 +61,7 @@ services:
       start_period: 10s
 
   importer:
-    image: fireflyiii/data-importer:latest
+    image: fireflyiii/data-importer:version-2.2.1
     hostname: importer
     container_name: firefly_iii_test_importer
     restart: "no"

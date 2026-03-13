@@ -2,7 +2,7 @@
   "mcpServers": {
     "firefly": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/OriginalByteMe/claude-open-finance", "firefly-mcp"],
+      "args": ["--python", ">=3.10", "--from", "git+https://github.com/OriginalByteMe/claude-open-finance", "firefly-mcp"],
       "cwd": "${CLAUDE_PLUGIN_ROOT}"
     }
   }

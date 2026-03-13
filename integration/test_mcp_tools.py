@@ -27,14 +27,14 @@ load_dotenv(_env_path)
 from firefly_mcp.client import FireflyClient
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def client():
     """Create a real FireflyClient connected to the Docker Firefly III instance."""
     c = FireflyClient(
         firefly_url=os.environ["FIREFLY_URL"],
         token=os.environ["FIREFLY_TOKEN"],
-        importer_url=os.environ["FIREFLY_IMPORTER_URL"],
-        importer_secret=os.environ["FIREFLY_IMPORTER_SECRET"],
+        importer_url=os.environ.get("FIREFLY_IMPORTER_URL", ""),
+        importer_secret=os.environ.get("FIREFLY_IMPORTER_SECRET", ""),
     )
     yield c
     await c.close()
