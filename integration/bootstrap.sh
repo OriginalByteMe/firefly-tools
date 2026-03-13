@@ -67,21 +67,26 @@ TOKEN=$(docker exec "$APP_CONTAINER" php artisan tinker --execute="
     if (!\$user) { echo 'ERROR: User not found'; exit(1); }
     \$token = \$user->createToken('integration-test')->accessToken;
     echo \$token;
-" 2>&1)
+" 2>&1) || true
 
 # Clean up the token — tinker may output extra info
 TOKEN=$(echo "$TOKEN" | tail -1 | tr -d '[:space:]')
 
 if [ -z "$TOKEN" ] || echo "$TOKEN" | grep -qi "error"; then
-    echo "ERROR: Failed to generate token. Output: $TOKEN"
+    echo "WARNING: First token attempt failed. Output: $TOKEN"
     echo "==> Attempting alternative token creation..."
-    # Fallback: try via the registration endpoint if available
     TOKEN=$(docker exec "$APP_CONTAINER" php artisan tinker --execute="
         \$user = \FireflyIII\User::first();
         if (!\$user) { echo 'NO_USER'; exit(1); }
         \$token = \$user->createToken('fallback-test')->accessToken;
         echo \$token;
-    " 2>&1 | tail -1 | tr -d '[:space:]')
+    " 2>&1 | tail -1 | tr -d '[:space:]') || true
+fi
+
+if [ -z "$TOKEN" ] || echo "$TOKEN" | grep -qi "error"; then
+    echo "ERROR: Could not generate a Personal Access Token."
+    echo "       Token output: $TOKEN"
+    exit 1
 fi
 
 echo "    Token: ${TOKEN:0:20}..."
