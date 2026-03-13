@@ -2,7 +2,7 @@
 name: setup-automation
 description: Interactive session to create automation rules that auto-categorize transactions in Firefly III
 user-invocable: true
-allowed-tools: Agent, AskUserQuestion
+allowed-tools: Agent, AskUserQuestion, Bash, Read
 argument-hint: [description of what to automate]
 ---
 
@@ -19,11 +19,22 @@ If credentials are missing, tell the user to run `/firefly-tools:setup` first an
 
 `$ARGUMENTS` optionally describes what the user wants to automate (e.g., "tag all Grab transactions as transport").
 
+## Cowork Mode (Script Fallback)
+
+If MCP tools (`firefly:*`) are not available (e.g., in Cowork mode), use the equivalent scripts in `${CLAUDE_PLUGIN_ROOT}/scripts/` via Bash:
+- `firefly:get_automation_context` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_rules.py context`
+- `firefly:get_financial_context` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/get_context.py [--cache]`
+- `firefly:manage_automations` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_rules.py <action> [options]`
+- `firefly:test_automation` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_rules.py test --rule-id <id>`
+- `firefly:manage_metadata` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_metadata.py <action> --name "..."`
+
+All scripts output JSON to stdout.
+
 ## Step 1: Gather Context
 
-1. Call `firefly:get_automation_context` to load available trigger keywords, action keywords, and rule groups
-2. Call `firefly:get_financial_context("all")` to load existing categories, tags, budgets, accounts
-3. Call `firefly:manage_automations` with action "list" to see existing rules (avoid duplicates)
+1. Call `firefly:get_automation_context` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_rules.py context`) to load available trigger keywords, action keywords, and rule groups
+2. Call `firefly:get_financial_context("all")` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/get_context.py --cache`) to load existing categories, tags, budgets, accounts
+3. Call `firefly:manage_automations` with action "list" (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_rules.py list`) to see existing rules (avoid duplicates)
 
 ## Step 2: Design the Rule
 
@@ -54,15 +65,15 @@ Then:
 If the rule references categories, tags, or budgets that don't exist yet:
 1. List what needs to be created
 2. Confirm with the user
-3. Call `firefly:manage_metadata` for each
+3. Call `firefly:manage_metadata` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_metadata.py`) for each
 
 ## Step 4: Create and Test
 
-1. Call `firefly:manage_automations` with action "create" and the full rule definition
-2. Call `firefly:test_automation` with the new rule_id (execute=false) to dry-run
+1. Call `firefly:manage_automations` with action "create" (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_rules.py create --title "..." --triggers '[...]' --actions '[...]'`)
+2. Call `firefly:test_automation` with the new rule_id (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_rules.py test --rule-id <id>`) with execute=false to dry-run
 3. Show results: "This rule would match X existing transactions"
 4. Ask if the user wants to apply it to existing transactions
-5. If yes, call `firefly:test_automation` with execute=true
+5. If yes, call `firefly:test_automation` with execute=true (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_rules.py fire --rule-id <id>`)
 
 ## Step 5: Summary
 

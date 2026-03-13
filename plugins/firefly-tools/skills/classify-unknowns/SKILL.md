@@ -2,7 +2,7 @@
 name: classify-unknowns
 description: Interactive session to categorize transactions that are missing tags, categories, or budgets
 user-invocable: true
-allowed-tools: Agent, AskUserQuestion
+allowed-tools: Agent, AskUserQuestion, Bash, Read
 argument-hint: [days]
 ---
 
@@ -19,10 +19,20 @@ If credentials are missing, tell the user to run `/firefly-tools:setup` first an
 
 `$ARGUMENTS` optionally specifies the number of days to look back (default: 30).
 
+## Cowork Mode (Script Fallback)
+
+If MCP tools (`firefly:*`) are not available (e.g., in Cowork mode), use the equivalent scripts in `${CLAUDE_PLUGIN_ROOT}/scripts/` via Bash:
+- `firefly:get_financial_context` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/get_context.py [--cache]`
+- `firefly:get_review_queue` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/review_queue.py --days <N> [--filter <type>]`
+- `firefly:categorize_transactions` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/categorize.py --file updates.json`
+- `firefly:manage_metadata` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_metadata.py <action> --name "..."`
+
+All scripts output JSON to stdout.
+
 ## Step 1: Gather Context
 
-1. Call `firefly:get_financial_context` to load all available categories, tags, budgets
-2. Call `firefly:get_review_queue` with the specified days parameter
+1. Call `firefly:get_financial_context` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/get_context.py --cache`) to load all available categories, tags, budgets
+2. Call `firefly:get_review_queue` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/review_queue.py --days <N>`) with the specified days parameter
 3. If the queue is empty, tell the user everything is classified and stop
 4. Tell the user how many unclassified transactions were found
 
@@ -60,8 +70,8 @@ For these, use `AskUserQuestion` to ask the user directly. Keep questions short 
 
 ## Step 4: Apply
 
-1. If the user wants new categories or tags that don't exist yet, call `firefly:manage_metadata` to create them
-2. Call `firefly:categorize_transactions` with all confirmed classifications
+1. If the user wants new categories or tags that don't exist yet, call `firefly:manage_metadata` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_metadata.py`) to create them
+2. Call `firefly:categorize_transactions` (or write a JSON file and `python ${CLAUDE_PLUGIN_ROOT}/scripts/categorize.py --file updates.json`) with all confirmed classifications
 3. Summarize:
    - X transactions categorized
    - Y new tags/categories created (if any)

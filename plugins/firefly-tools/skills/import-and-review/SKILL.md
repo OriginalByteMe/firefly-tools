@@ -2,7 +2,7 @@
 name: import-and-review
 description: Import a bank statement (CSV or PDF) and interactively review/categorize the imported transactions
 user-invocable: true
-allowed-tools: Read, Write, Agent, AskUserQuestion
+allowed-tools: Read, Write, Agent, AskUserQuestion, Bash
 argument-hint: <path-to-statement>
 ---
 
@@ -38,9 +38,20 @@ Skip directly to Phase 2.
 **If anything else:**
 Tell the user only CSV and PDF files are supported and stop.
 
+## Cowork Mode (Script Fallback)
+
+If MCP tools (`firefly:*`) are not available (e.g., in Cowork mode), use the equivalent scripts in `${CLAUDE_PLUGIN_ROOT}/scripts/` via Bash. The script equivalents are:
+- `firefly:import_bank_statement` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/import_csv.py <path> [--bank hsbc|maybank] [--dry-run]`
+- `firefly:get_financial_context` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/get_context.py [--cache]`
+- `firefly:get_review_queue` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/review_queue.py --days 7`
+- `firefly:categorize_transactions` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/categorize.py --file updates.json`
+- `firefly:manage_metadata` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_metadata.py <action> --name "..."`
+
+All scripts output JSON to stdout. You can optionally pre-validate CSVs with `python ${CLAUDE_PLUGIN_ROOT}/scripts/validate_import.py <path> --check-duplicates`.
+
 ## Phase 2: Import
 
-1. Call `firefly:import_bank_statement` with the CSV file path
+1. Call `firefly:import_bank_statement` with the CSV file path (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/import_csv.py <path>` in Cowork mode)
    - The tool auto-detects the bank from CSV content (looks for "maybank" in the header, defaults to HSBC otherwise)
    - If the user knows it's wrong, they can re-run specifying the bank
 2. Report: how many rows were in the CSV, the detected bank, and the import result
@@ -48,8 +59,8 @@ Tell the user only CSV and PDF files are supported and stop.
 
 ## Phase 3: Review & Categorize
 
-1. Call `firefly:get_financial_context` to load available categories, tags, budgets, and accounts
-2. Call `firefly:get_review_queue` with `days_back=7` to get recently imported transactions
+1. Call `firefly:get_financial_context` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/get_context.py --cache`) to load available categories, tags, budgets, and accounts
+2. Call `firefly:get_review_queue` with `days_back=7` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/review_queue.py --days 7`) to get recently imported transactions
    - Using 7 days instead of 1 to catch imports that span midnight or take time to process
 3. Collect ALL transaction descriptions from the queue into a single list
 4. Dispatch the `merchant-classifier` agent ONCE with the full batch of descriptions plus the financial context
@@ -71,8 +82,8 @@ Tell the user only CSV and PDF files are supported and stop.
    - Approve all high-confidence suggestions at once ("yes, apply all")
    - Correct specific ones by number ("change #3 to Food & Dining")
    - Skip ambiguous ones for later
-7. Call `firefly:categorize_transactions` with the confirmed classifications
-   - If any new categories or tags are needed, call `firefly:manage_metadata` to create them first
+7. Call `firefly:categorize_transactions` (or write a JSON file and run `python ${CLAUDE_PLUGIN_ROOT}/scripts/categorize.py --file updates.json`) with the confirmed classifications
+   - If any new categories or tags are needed, call `firefly:manage_metadata` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_metadata.py`) to create them first
 
 ## Phase 4: Summary
 

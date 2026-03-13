@@ -2,7 +2,7 @@
 name: setup
 description: Set up Firefly III credentials for this plugin. Run this first after installing.
 user-invocable: true
-allowed-tools: Read, Write, AskUserQuestion
+allowed-tools: Read, Write, AskUserQuestion, Bash
 ---
 
 # Firefly III Setup
@@ -21,7 +21,7 @@ Guide the user through connecting to their Firefly III instance. Credentials are
 Read the file `${CLAUDE_PLUGIN_ROOT}/.env`.
 
 - If it exists and values are NOT placeholders (don't contain `REPLACE_WITH`):
-  - Try calling `firefly:get_financial_context` to verify the connection
+  - Try calling `firefly:get_financial_context` to verify the connection. If MCP is unavailable (Cowork mode), run `python ${CLAUDE_PLUGIN_ROOT}/scripts/firefly_client.py` instead.
   - **Success:** Tell the user they're already connected, show their account names, and stop
   - **Failure:** Tell them the connection failed, show the file path, and suggest they double-check the values in their editor. Stop.
 - If the file doesn't exist or has placeholder values, continue to Step 2
@@ -83,7 +83,7 @@ Then use `AskUserQuestion` to ask: "Let me know when you've saved your credentia
 Once the user confirms:
 1. Read the `.env` file — check if any `REPLACE_WITH` placeholders remain (do NOT display the actual values)
 2. If placeholders remain, tell the user which specific fields still need to be filled in
-3. If all fields are filled, call `firefly:get_financial_context` to test the connection
+3. If all fields are filled, call `firefly:get_financial_context` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/get_context.py` in Cowork mode) to test the connection
    - **Success:** Show their account names and suggest trying `/firefly-tools:import-and-review`
    - **Failure:** Show the error message (without exposing credentials) and suggest what to check:
      - "Connection refused" → wrong URL or service not running
