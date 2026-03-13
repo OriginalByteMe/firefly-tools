@@ -2,7 +2,7 @@
 name: monthly-review
 description: Conduct an end-of-month financial review with spending analysis, budget performance, and transaction audit
 user-invocable: true
-allowed-tools: Agent, AskUserQuestion
+allowed-tools: Agent, AskUserQuestion, Bash, Read
 argument-hint: [YYYY-MM]
 ---
 
@@ -27,16 +27,29 @@ Convert the target month to the date range format the MCP tools expect:
 - Use period format `YYYY-MM-DD:YYYY-MM-DD` when calling `firefly:get_spending_summary`
 - For the previous month comparison, calculate the month before the target month the same way
 
+## Cowork Mode (Script Fallback)
+
+If MCP tools (`firefly:*`) are not available (e.g., in Cowork mode), use the equivalent scripts in `${CLAUDE_PLUGIN_ROOT}/scripts/` via Bash:
+- `firefly:get_spending_summary` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/spending_summary.py --period <period> --group-by <group> [--compare]`
+- `firefly:get_review_queue` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/review_queue.py --days <N>`
+- `firefly:manage_metadata` → `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_metadata.py <action> --name "..."`
+
+For a one-shot Markdown report, you can also use: `python ${CLAUDE_PLUGIN_ROOT}/scripts/spending_report.py --period YYYY-MM`
+
+Additional Cowork-only tools:
+- `python ${CLAUDE_PLUGIN_ROOT}/scripts/budget_forecast.py` — project where spending will land by end of month
+- `python ${CLAUDE_PLUGIN_ROOT}/scripts/export_transactions.py --date-from ... --date-to ... --format csv` — export raw data
+
 ## Phase 1: Data Collection
 
 Call these (they can run in parallel):
-1. `firefly:get_spending_summary` with period `{start}:{end}`, grouped by `category`
-2. `firefly:get_spending_summary` with period `{start}:{end}`, grouped by `budget`
-3. `firefly:get_spending_summary` with period `{start}:{end}`, grouped by `tag`
-4. `firefly:get_review_queue` with enough `days_back` to cover the target month
+1. `firefly:get_spending_summary` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/spending_summary.py --period {start}:{end} --group-by category`) with period `{start}:{end}`, grouped by `category`
+2. `firefly:get_spending_summary` (or `spending_summary.py --period {start}:{end} --group-by budget`) with period `{start}:{end}`, grouped by `budget`
+3. `firefly:get_spending_summary` (or `spending_summary.py --period {start}:{end} --group-by tag`) with period `{start}:{end}`, grouped by `tag`
+4. `firefly:get_review_queue` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/review_queue.py --days <N>`) with enough `days_back` to cover the target month
 
 Also fetch prior month data for comparison:
-5. `firefly:get_spending_summary` with prior month period, grouped by `category`
+5. `firefly:get_spending_summary` (or `spending_summary.py --period {prior_start}:{prior_end} --group-by category`) with prior month period, grouped by `category`
 
 ## Phase 2: Unclassified Check
 
@@ -85,4 +98,4 @@ Based on the discussion, offer concrete next steps (only suggest what's relevant
 - Create a new tag for tracking: "Want to start tagging delivery vs dine-in?"
 - Note for next month: summarize any goals the user mentioned
 
-Only call `firefly:manage_metadata` if the user agrees to a specific change. Don't make changes without confirmation.
+Only call `firefly:manage_metadata` (or `python ${CLAUDE_PLUGIN_ROOT}/scripts/manage_metadata.py`) if the user agrees to a specific change. Don't make changes without confirmation.

@@ -49,6 +49,41 @@ A [Model Context Protocol](https://modelcontextprotocol.io) server that gives Cl
 
 The MCP server works standalone with any MCP-compatible client — Claude Code, Claude Desktop, or others.
 
+### Cowork Scripts (`scripts/`)
+
+> **Disclaimer:** Claude Code's Cowork mode does not currently support loading MCP servers that aren't configured as ACP (Agent Communication Protocol) or SSE (Server-Sent Events) endpoints with OAuth authentication. While you *can* technically ask Cowork to load the MCP server and it may work, it won't do so automatically — it's a known limitation and can be unreliable. The scripts below are the recommended workaround for Cowork mode. They provide the same functionality as the MCP server, are more efficient for agent execution, and include additional data processing capabilities not available in the MCP server.
+
+A complete set of standalone Python scripts that replicate every MCP tool as a CLI command. These scripts are designed for use in **Claude Code Cowork mode** and by **other AI agents** that can execute shell commands but can't load MCP servers.
+
+**API Operation Scripts** (1:1 replacements for MCP tools):
+
+| Script | Replaces MCP Tool | What it does |
+|--------|------------------|-------------|
+| `firefly_client.py` | *(core module)* | Shared HTTP client, auth, retry logic. Run standalone to test connection. |
+| `get_context.py` | `get_financial_context` | Fetch categories, tags, budgets, accounts, bills. Supports caching. |
+| `search_transactions.py` | `search_transactions` | Flexible transaction search with all filter options. |
+| `spending_summary.py` | `get_spending_summary` | Aggregated spending by category/tag/budget/account with period comparison. |
+| `review_queue.py` | `get_review_queue` | Find transactions missing categories, tags, or budgets. |
+| `categorize.py` | `categorize_transactions` | Batch-apply categories/tags/budgets from JSON. Supports `--dry-run`. |
+| `update_transactions.py` | `update_transactions` | Bulk-update any transaction fields. Supports `--dry-run`. |
+| `manage_metadata.py` | `manage_metadata` | CRUD for tags, categories, budgets, accounts, bills. |
+| `manage_rules.py` | `manage_automations` / `test_automation` / `get_automation_context` | Full rule management: list, create, test, fire, enable/disable. |
+| `discover_recurring.py` | `discover_recurring` | Detect subscription and recurring payment patterns. |
+| `import_csv.py` | `import_bank_statement` | Upload CSV + bank config to the Data Importer. |
+
+**Data Processing Scripts** (new — not available in the MCP server):
+
+| Script | What it does |
+|--------|-------------|
+| `export_transactions.py` | Export transactions to CSV or JSON for external analysis. |
+| `spending_report.py` | Generate a full Markdown spending report with category breakdown, budget performance, and trends. |
+| `validate_import.py` | Pre-validate a CSV before importing: date/amount parsing, duplicate detection. |
+| `detect_duplicates.py` | Scan Firefly for duplicate transactions by date + amount + description similarity. |
+| `budget_forecast.py` | Project spending to end of month/quarter using historical trends. |
+| `normalize_merchants.py` | Detect inconsistent merchant names and suggest consolidations. |
+
+All scripts output JSON to stdout (except `spending_report.py` which outputs Markdown). They read credentials from the same `.env` file used by the MCP server.
+
 ### Claude Code Plugin (`skills/`, `agents/`, `hooks/`)
 
 Workflow automation built on top of the MCP server. This is where the magic happens.
@@ -144,6 +179,41 @@ Claude Desktop doesn't support third-party plugin marketplaces yet. You can use 
 ```
 /firefly-tools:monthly-review 2026-02
 ```
+
+### Cowork Mode / Script Usage
+
+All skills work in Cowork mode automatically — they detect when MCP tools are unavailable and fall back to the bundled scripts. You can also use the scripts directly:
+
+```bash
+# Test your connection
+python scripts/firefly_client.py
+
+# Get your financial context (categories, tags, budgets, accounts)
+python scripts/get_context.py --cache
+
+# Search transactions
+python scripts/search_transactions.py --query "grab" --date-from 2026-01-01
+
+# Generate a spending report
+python scripts/spending_report.py --period 2026-02
+
+# Forecast budget performance
+python scripts/budget_forecast.py
+
+# Check for duplicates
+python scripts/detect_duplicates.py --days 60
+
+# Export transactions to CSV
+python scripts/export_transactions.py --date-from 2026-01-01 --date-to 2026-03-31 --format csv --output q1.csv
+
+# Validate a CSV before importing
+python scripts/validate_import.py ~/Downloads/statement.csv --check-duplicates
+
+# Find inconsistent merchant names
+python scripts/normalize_merchants.py --days 180
+```
+
+The scripts only require Python 3.10+ and `requests` — no additional dependencies beyond what's in the standard library. They use the same `.env` credentials as the MCP server.
 
 ---
 

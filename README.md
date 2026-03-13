@@ -39,6 +39,7 @@ Automate personal finance with [Firefly III](https://www.firefly-iii.org/) — t
 - Automation rules that auto-categorize future transactions
 - Monthly spending reviews with budget comparisons
 - Supports HSBC Malaysia and Maybank out of the box
+- **Cowork mode support** — bundled scripts work without MCP for Claude Code Cowork and other AI agents
 
 **Install:**
 

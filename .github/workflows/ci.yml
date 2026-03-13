@@ -53,8 +53,20 @@ jobs:
       - name: Dump Firefly III logs on failure
         if: failure()
         run: |
-          docker compose -f integration/docker-compose.yml logs app
-          docker compose -f integration/docker-compose.yml logs db
+          echo "=== Docker container status ==="
+          docker ps -a --filter name=firefly
+          echo ""
+          echo "=== Firefly III app logs ==="
+          docker compose -f integration/docker-compose.yml logs app --tail=100
+          echo ""
+          echo "=== MariaDB logs ==="
+          docker compose -f integration/docker-compose.yml logs db --tail=50
+          echo ""
+          echo "=== Laravel application log ==="
+          docker exec firefly_iii_test cat /var/www/html/storage/logs/laravel.log 2>/dev/null | tail -100 || echo "(no laravel.log found)"
+          echo ""
+          echo "=== .env.test contents ==="
+          cat integration/.env.test 2>/dev/null || echo "(no .env.test found)"
 
       - name: Teardown
         if: always()

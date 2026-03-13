@@ -13,9 +13,9 @@
       "name": "firefly-tools",
       "source": "./plugins/firefly-tools",
       "description": "Automate personal finance with Firefly III — import bank statements, categorize transactions, set up automation rules, and review spending.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "finance",
-      "tags": ["firefly-iii", "budgeting", "bank-import", "transactions", "automation"]
+      "tags": ["firefly-iii", "budgeting", "bank-import", "transactions", "automation", "cowork"]
     }
   ]
 }

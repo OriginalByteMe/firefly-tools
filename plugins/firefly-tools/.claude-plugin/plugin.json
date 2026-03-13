@@ -1,7 +1,7 @@
 {
   "name": "firefly-tools",
-  "version": "0.1.0",
-  "description": "Financial workflow automation for Firefly III — import bank statements, categorize transactions, set up automation rules, and review spending with AI-powered agents.",
+  "version": "0.2.0",
+  "description": "Financial workflow automation for Firefly III — import bank statements, categorize transactions, set up automation rules, and review spending with AI-powered agents. Includes Cowork mode scripts for use without MCP.",
   "author": {
     "name": "noahr"
   },
