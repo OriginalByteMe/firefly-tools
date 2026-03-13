@@ -1,0 +1,87 @@
+services:
+  app:
+    image: fireflyiii/core:latest
+    hostname: app
+    container_name: firefly_iii_test
+    restart: "no"
+    volumes:
+      - firefly_upload:/var/www/html/storage/upload
+    environment:
+      # App
+      APP_ENV: testing
+      APP_KEY: ${APP_KEY:-SomeRandomStringOf32CharsExactly}
+      APP_URL: http://localhost:8080
+      TRUSTED_PROXIES: "**"
+      # Database
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: firefly
+      DB_USERNAME: firefly
+      DB_PASSWORD: firefly_test_password
+      # Misc
+      DEFAULT_LANGUAGE: en_US
+      DEFAULT_LOCALE: equal
+      TZ: UTC
+      ALLOW_WEBHOOKS: "false"
+      STATIC_CRON_TOKEN: aaaabbbbccccddddeeeeffffgggghhhh
+    networks:
+      - firefly_test
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  db:
+    image: mariadb:lts
+    hostname: db
+    container_name: firefly_iii_test_db
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_test_password
+      MYSQL_DATABASE: firefly
+      MYSQL_USER: firefly
+      MYSQL_PASSWORD: firefly_test_password
+    networks:
+      - firefly_test
+    volumes:
+      - firefly_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  importer:
+    image: fireflyiii/data-importer:latest
+    hostname: importer
+    container_name: firefly_iii_test_importer
+    restart: "no"
+    environment:
+      FIREFLY_III_URL: http://app:8080
+      VANITY_URL: http://localhost:8080
+      # Token will be set by bootstrap script via .env.importer
+      FIREFLY_III_ACCESS_TOKEN: ${FIREFLY_TOKEN:-placeholder}
+    networks:
+      - firefly_test
+    ports:
+      - "8081:8080"
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  firefly_upload:
+  firefly_db:
+
+networks:
+  firefly_test:
+    driver: bridge
