@@ -45,7 +45,11 @@ echo "==> Running database migrations..."
 docker exec "$APP_CONTAINER" php artisan migrate --force --seed 2>&1 || true
 
 echo "==> Creating test user ($TEST_EMAIL)..."
-USER_OUTPUT=$(docker exec "$APP_CONTAINER" php artisan firefly-iii:create-first-user "$TEST_EMAIL" 2>&1) || true
+# Newer Firefly III versions renamed the command from firefly-iii:create-first-user
+# to system:create-first-user. Try new name first, fall back to old.
+USER_OUTPUT=$(docker exec "$APP_CONTAINER" php artisan system:create-first-user "$TEST_EMAIL" 2>&1) \
+    || USER_OUTPUT=$(docker exec "$APP_CONTAINER" php artisan firefly-iii:create-first-user "$TEST_EMAIL" 2>&1) \
+    || true
 echo "    $USER_OUTPUT"
 
 # Extract password from output (format: "Created new admin user with email ... and password ...")
