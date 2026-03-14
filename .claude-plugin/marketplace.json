@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Open-source personal finance tools for Claude Code — import, categorize, automate, and review your financial data.",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "pluginRoot": "./plugins"
   },
   "plugins": [
